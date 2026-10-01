@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Maximize } from 'lucide-react'
-import { useDesignStore } from '../../store/designStore'
+import { useActivePart, useDesignStore } from '../../store/designStore'
 import { perforationSegments } from '../../lib/geometry/build'
 import type { BuildResult, Point } from '../../lib/geometry/types'
 
@@ -29,7 +29,7 @@ export function CutCanvas({ result }: { result: BuildResult }) {
   const [size, setSize] = useState({ w: 800, h: 600 })
   const [view, setView] = useState<View | null>(null)
   const [autoFit, setAutoFit] = useState(true)
-  const design = useDesignStore((s) => s.design)
+  const design = useActivePart()
   const selectedId = useDesignStore((s) => s.selectedGroupId)
   const selectGroup = useDesignStore((s) => s.selectGroup)
   const updateGroup = useDesignStore((s) => s.updateGroup)

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useDesignStore } from '../../store/designStore'
+import { useActivePart, useDesignStore } from '../../store/designStore'
 import { defaultFlapShape } from '../../lib/presets'
 import { buildFlapLocal } from '../../lib/geometry/shapes'
 import { bounds } from '../../lib/geometry/polygon'
@@ -209,7 +209,9 @@ function CutoutGroupEditor({ group }: { group: CutoutGroup }) {
 }
 
 export function GroupEditor() {
-  const group = useDesignStore((s) => s.design.groups.find((g) => g.id === s.selectedGroupId))
+  const part = useActivePart()
+  const selectedId = useDesignStore((s) => s.selectedGroupId)
+  const group = part.groups.find((g) => g.id === selectedId)
   if (!group) return null
   return group.type === 'flap' ? <FlapGroupEditor group={group} /> : <CutoutGroupEditor group={group} />
 }

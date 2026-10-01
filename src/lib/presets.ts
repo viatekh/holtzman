@@ -1,5 +1,5 @@
 import { generateId } from './utils'
-import type { CutoutGroup, Design, FlapGroup, FlapShape, Placement, SheetConfig } from './geometry/types'
+import type { AssemblyArray, CutoutGroup, FlapGroup, FlapShape, FormConfig, Part, Placement, SheetConfig } from './geometry/types'
 
 export const BED_PRESETS = [
   { label: '4 × 4 ft (1220 × 1220)', width: 1220, height: 1220 },
@@ -71,7 +71,30 @@ export function defaultPlacement(kind: Placement['kind']): Placement {
       }
     case 'edge':
       return { kind: 'edge', count: 8, phase: 0, pointing: 'out' }
+    case 'line':
+      return { kind: 'line', count: 6, x1: -200, y1: 0, x2: 200, y2: 0, angle: 90, scaleStart: 1, scaleEnd: 1 }
   }
+}
+
+export function defaultForm(kind: FormConfig['kind'] = 'flat'): FormConfig {
+  return kind === 'flat' ? { kind: 'flat' } : { kind: 'roll', axis: 'vertical', wrapDeg: 360, seamTabs: true, seamTabCount: 4, seamTabLength: 25 }
+}
+
+export function defaultArray(kind: AssemblyArray['kind'] = 'single'): AssemblyArray {
+  switch (kind) {
+    case 'single':
+      return { kind: 'single', x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0 }
+    case 'ring':
+      return { kind: 'ring', count: 6, radius: 300, joinEdges: true, tiltDeg: 0, spinDeg: 0, height: 0, alternateMirror: false }
+    case 'grid':
+      return { kind: 'grid', rows: 2, cols: 3, spacingX: 600, spacingY: 600, joinEdges: true, stagger: false, alternateFlip: false }
+    case 'stack':
+      return { kind: 'stack', count: 6, spacing: 80, twistDeg: 15, scaleStep: 0 }
+  }
+}
+
+export function newPart(name = 'Part'): Part {
+  return { id: generateId(), name, sheet: defaultSheet(), groups: [newFlapGroup('Flaps')], form: defaultForm(), array: defaultArray() }
 }
 
 export function newFlapGroup(name = 'Flaps'): FlapGroup {
@@ -101,132 +124,3 @@ export function newCutoutGroup(name = 'Cutouts'): CutoutGroup {
   }
 }
 
-function flap(partial: Partial<FlapGroup> & Pick<FlapGroup, 'name' | 'shape' | 'placement' | 'fold'>): FlapGroup {
-  return { id: generateId(), type: 'flap', visible: true, attach: 'inset', autoPrune: true, ...partial }
-}
-
-function cutout(partial: Partial<CutoutGroup> & Pick<CutoutGroup, 'name' | 'shape' | 'placement'>): CutoutGroup {
-  return { id: generateId(), type: 'cutout', visible: true, rotation: 0, autoPrune: true, ...partial }
-}
-
-export interface DesignPreset {
-  id: string
-  name: string
-  blurb: string
-  make: () => Design
-}
-
-export const DESIGN_PRESETS: DesignPreset[] = [
-  {
-    id: 'bloom',
-    name: 'Bloom',
-    blurb: 'Rings of petals opening wider toward the rim',
-    make: () => ({
-      version: 1,
-      name: 'Bloom',
-      sheet: { ...defaultSheet(), outline: { kind: 'ellipse', width: 760, height: 760 } },
-      groups: [
-        flap({
-          name: 'Petals',
-          shape: { kind: 'petal', width: 46, length: 72, taper: 0.4, roundness: 0.55, curl: 0 },
-          placement: { ...(defaultPlacement('radial') as Extract<Placement, { kind: 'radial' }>), rings: 3, perRing: 8, perRingGrowth: 6, innerRadius: 70, ringSpacing: 92, scaleInner: 0.8, scaleOuter: 1.15 },
-          fold: { angle: 40, direction: 'up', variation: { kind: 'gradient', endAngle: 105 } },
-        }),
-        cutout({ name: 'Eye', shape: { kind: 'circle', diameter: 56 }, placement: defaultPlacement('single') }),
-      ],
-    }),
-  },
-  {
-    id: 'scales',
-    name: 'Scales',
-    blurb: 'Staggered fish scales lifting in a wave',
-    make: () => ({
-      version: 1,
-      name: 'Scales',
-      sheet: { ...defaultSheet(), outline: { kind: 'superellipse', width: 900, height: 560, exponent: 4 } },
-      groups: [
-        flap({
-          name: 'Scales',
-          shape: { kind: 'scale', width: 62, length: 52, taper: 0.1, roundness: 0.95, curl: 0 },
-          placement: { kind: 'grid', rows: 6, cols: 10, spacingX: 78, spacingY: 76, stagger: true, angle: 90, cx: 0, cy: -20 },
-          fold: { angle: 35, direction: 'up', variation: { kind: 'wave', amplitude: 28, wavelength: 520, direction: 0 } },
-        }),
-      ],
-    }),
-  },
-  {
-    id: 'sunflower',
-    name: 'Sunflower',
-    blurb: 'Phyllotaxis spiral of leaves, steeper toward the edge',
-    make: () => ({
-      version: 1,
-      name: 'Sunflower',
-      sheet: { ...defaultSheet(), outline: { kind: 'ellipse', width: 820, height: 820 } },
-      groups: [
-        flap({
-          name: 'Leaves',
-          shape: { kind: 'leaf', width: 22, length: 46, taper: 0.45, roundness: 0, curl: 0 },
-          placement: { ...(defaultPlacement('spiral') as Extract<Placement, { kind: 'spiral' }>), count: 140, spacing: 30, startIndex: 5, scaleInner: 0.55, scaleOuter: 1.25 },
-          fold: { angle: 15, direction: 'up', variation: { kind: 'gradient', endAngle: 85 } },
-        }),
-      ],
-    }),
-  },
-  {
-    id: 'crown',
-    name: 'Crown',
-    blurb: 'Edge spikes fold up into a vessel; leaves flick in and out',
-    make: () => ({
-      version: 1,
-      name: 'Crown',
-      sheet: { ...defaultSheet(), outline: { kind: 'polygon', sides: 14, radius: 260, rotation: 0, cornerRadius: 6 } },
-      groups: [
-        flap({
-          name: 'Spikes',
-          attach: 'edge',
-          shape: { kind: 'spike', width: 100, length: 220, taper: 0.25, roundness: 0, curl: 0 },
-          placement: { kind: 'edge', count: 14, phase: 0.5 / 14, pointing: 'out' },
-          fold: { angle: 80, direction: 'up', variation: { kind: 'constant' } },
-          autoPrune: false,
-        }),
-        flap({
-          name: 'Leaves',
-          shape: { kind: 'flame', width: 30, length: 95, taper: 0.4, roundness: 0, curl: 30 },
-          placement: { ...(defaultPlacement('radial') as Extract<Placement, { kind: 'radial' }>), rings: 1, perRing: 14, perRingGrowth: 0, innerRadius: 110, ringSpacing: 0, startAngle: 0, pointing: 'out', scaleInner: 1, scaleOuter: 1 },
-          fold: { angle: 55, direction: 'alternate', variation: { kind: 'constant' } },
-        }),
-        cutout({ name: 'Centre', shape: { kind: 'polygon', sides: 7, radius: 46 }, placement: defaultPlacement('single') }),
-      ],
-    }),
-  },
-  {
-    id: 'creature',
-    name: 'Creature',
-    blurb: 'Organic blob on folded legs, flames rippling across its back',
-    make: () => ({
-      version: 1,
-      name: 'Creature',
-      sheet: { ...defaultSheet(), outline: { kind: 'blob', radius: 300, complexity: 5, irregularity: 0.28, seed: 7 } },
-      groups: [
-        flap({
-          name: 'Legs',
-          attach: 'edge',
-          shape: { kind: 'tab', width: 70, length: 120, taper: 0.55, roundness: 0.25, curl: 0 },
-          placement: { kind: 'edge', count: 4, phase: 0.125, pointing: 'out' },
-          fold: { angle: 90, direction: 'down', variation: { kind: 'constant' } },
-          autoPrune: false,
-        }),
-        flap({
-          name: 'Flames',
-          shape: { kind: 'flame', width: 30, length: 80, taper: 0.4, roundness: 0, curl: 40 },
-          placement: { kind: 'grid', rows: 6, cols: 7, spacingX: 62, spacingY: 76, stagger: true, angle: 75, cx: 0, cy: -30 },
-          fold: { angle: 50, direction: 'up', variation: { kind: 'random', spread: 30, seed: 3 } },
-        }),
-      ],
-    }),
-  },
-]
-
-export function defaultDesign(): Design {
-  return DESIGN_PRESETS[0].make()
-}

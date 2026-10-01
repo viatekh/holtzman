@@ -159,6 +159,18 @@ export type Placement =
     }
   /** Evenly around the sheet outline. */
   | { kind: 'edge'; count: number; phase: number; pointing: 'out' | 'in' }
+  /** A straight row from (x1, y1) to (x2, y2), all pointing one way. */
+  | {
+      kind: 'line'
+      count: number
+      x1: number
+      y1: number
+      x2: number
+      y2: number
+      angle: number
+      scaleStart: number
+      scaleEnd: number
+    }
 
 export interface FlapGroup {
   id: string
@@ -193,6 +205,70 @@ export interface Design {
   name: string
   sheet: SheetConfig
   groups: FeatureGroup[]
+}
+
+/** What happens to the sheet after the flaps are folded. 'roll' curls the
+ * whole plate around an axis (slip roll or a former) — 360° makes a tube,
+ * less gives a curved panel. Flaps folded "up" then stand OUT of the tube. */
+export type FormConfig =
+  | { kind: 'flat' }
+  | {
+      kind: 'roll'
+      /** 'vertical' = tube axis runs along the sheet's height (y); the sheet
+       * wraps across its width. 'horizontal' wraps across its height. */
+      axis: 'vertical' | 'horizontal'
+      wrapDeg: number
+      /** Overlap tabs on the closing seam, for welding or riveting. */
+      seamTabs: boolean
+      seamTabCount: number
+      seamTabLength: number
+    }
+
+/** How copies of a part are placed in the assembled sculpture. World is
+ * y-up; a part stands in its own XY plane facing +z unless stated. */
+export type AssemblyArray =
+  | { kind: 'single'; x: number; y: number; z: number; rx: number; ry: number; rz: number }
+  /** Copies standing around a vertical axis, facing out. With `joinEdges`
+   * the radius is solved so neighbouring edges meet — a prism / column. */
+  | {
+      kind: 'ring'
+      count: number
+      radius: number
+      joinEdges: boolean
+      /** Lean outward (+) or inward (−) about each copy's bottom edge. */
+      tiltDeg: number
+      /** Spin each copy about its own face normal. */
+      spinDeg: number
+      height: number
+      alternateMirror: boolean
+    }
+  /** A wall of tiles in the XY plane. */
+  | {
+      kind: 'grid'
+      rows: number
+      cols: number
+      spacingX: number
+      spacingY: number
+      joinEdges: boolean
+      stagger: boolean
+      alternateFlip: boolean
+    }
+  /** Copies lying flat, stacked upward on spacers, twisting as they rise. */
+  | { kind: 'stack'; count: number; spacing: number; twistDeg: number; scaleStep: number }
+
+export interface Part {
+  id: string
+  name: string
+  sheet: SheetConfig
+  groups: FeatureGroup[]
+  form: FormConfig
+  array: AssemblyArray
+}
+
+export interface Project {
+  version: 2
+  name: string
+  parts: Part[]
 }
 
 // ─── Derived geometry ───────────────────────────────────────────────────────
@@ -231,7 +307,7 @@ export interface Issue {
   featureIds?: string[]
 }
 
-export type CutLayer = 'cut' | 'bend'
+export type CutLayer = 'cut' | 'bend' | 'sheet'
 
 export interface CutPath {
   layer: CutLayer

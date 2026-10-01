@@ -1,10 +1,10 @@
 import { ArrowDown, ArrowUp, Copy, CircleDashed, Eye, EyeOff, Leaf, Trash2 } from 'lucide-react'
-import { useDesignStore } from '../../store/designStore'
+import { useActivePart, useDesignStore } from '../../store/designStore'
 import { cn } from '../../lib/utils'
 import { Section } from '../shared/Section'
 
 export function GroupsPanel() {
-  const groups = useDesignStore((s) => s.design.groups)
+  const groups = useActivePart().groups
   const selectedId = useDesignStore((s) => s.selectedGroupId)
   const { selectGroup, updateGroup, removeGroup, duplicateGroup, moveGroup, addGroup } = useDesignStore.getState()
 

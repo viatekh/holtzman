@@ -95,6 +95,21 @@ export function placeSites(placement: Placement, baseOutline: Polygon): PlacedSi
       }
       break
     }
+    case 'line': {
+      const count = Math.max(1, Math.round(placement.count))
+      for (let i = 0; i < count; i++) {
+        const t = count > 1 ? i / (count - 1) : 0.5
+        sites.push({
+          index: i,
+          x: lerp(placement.x1, placement.x2, t),
+          y: lerp(placement.y1, placement.y2, t),
+          angle: placement.angle * DEG,
+          scale: lerp(placement.scaleStart, placement.scaleEnd, t),
+          t,
+        })
+      }
+      break
+    }
     case 'edge': {
       const count = Math.max(1, Math.round(placement.count))
       const samples = sampleBoundary(baseOutline, count, placement.phase)

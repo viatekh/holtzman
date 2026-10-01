@@ -23,12 +23,15 @@ import type {
   CutoutGroup,
   CutPath,
   Design,
+  FeatureGroup,
   FlapGroup,
+  FormConfig,
   HingeConfig,
   Issue,
   MaterialKind,
   Point,
   Polygon,
+  SheetConfig,
   ResolvedCutout,
   ResolvedFlap,
 } from './types'
@@ -52,7 +55,7 @@ interface Candidate {
   attach?: 'inset' | 'edge'
 }
 
-function resolveFlaps(group: FlapGroup, base: Polygon, design: Design): ResolvedFlap[] {
+function resolveFlaps(group: FlapGroup, base: Polygon, design: BuildInput): ResolvedFlap[] {
   const out: ResolvedFlap[] = []
   const { minBridge, hinge } = design.sheet
   const reliefR = hinge.reliefHoles ? hinge.reliefDiameter / 2 : 0
@@ -110,7 +113,7 @@ function resolveFlaps(group: FlapGroup, base: Polygon, design: Design): Resolved
   return out
 }
 
-function resolveCutouts(group: CutoutGroup, base: Polygon, design: Design): ResolvedCutout[] {
+function resolveCutouts(group: CutoutGroup, base: Polygon, design: BuildInput): ResolvedCutout[] {
   const local = buildCutoutLocal(group.shape)
   const extra = (group.rotation * Math.PI) / 180
   return placeSites(group.placement, base).map((site) => {
@@ -152,9 +155,53 @@ export function perforationSegments(a: Point, b: Point, hinge: HingeConfig): [Po
   return segs
 }
 
-export function buildDesign(design: Design): BuildResult {
-  const { sheet } = design
+export interface BuildInput {
+  sheet: SheetConfig
+  groups: FeatureGroup[]
+  form?: FormConfig
+}
+
+/** Overlap tabs along the edge that closes a rolled tube — they tuck under
+ * the opposite edge for a weld or rivet line. */
+export function seamTabGroup(base: Polygon, form: Extract<FormConfig, { kind: 'roll' }>): FlapGroup {
+  const b = bounds(base)
+  const vertical = form.axis === 'vertical'
+  const span = vertical ? b.maxY - b.minY : b.maxX - b.minX
+  const count = Math.max(1, Math.round(form.seamTabCount))
+  const pitch = span / count
+  const inset = pitch / 2
+  return {
+    id: 'seam',
+    name: 'Seam tabs',
+    type: 'flap',
+    visible: true,
+    attach: 'edge',
+    shape: { kind: 'tab', width: pitch * 0.6, length: form.seamTabLength, taper: 0.8, roundness: 0.2, curl: 0 },
+    placement: vertical
+      ? { kind: 'line', count, x1: b.maxX, y1: b.minY + inset, x2: b.maxX, y2: b.maxY - inset, angle: 0, scaleStart: 1, scaleEnd: 1 }
+      : { kind: 'line', count, x1: b.minX + inset, y1: b.maxY, x2: b.maxX - inset, y2: b.maxY, angle: 90, scaleStart: 1, scaleEnd: 1 },
+    fold: { angle: 0, direction: 'up', variation: { kind: 'constant' } },
+    autoPrune: false,
+  }
+}
+
+/** Radius the sheet is rolled to (mm), or null when it stays flat. */
+export function rollRadius(base: Polygon, form: FormConfig | undefined): number | null {
+  if (!form || form.kind !== 'roll' || form.wrapDeg <= 0) return null
+  const b = bounds(base)
+  const span = form.axis === 'vertical' ? b.maxX - b.minX : b.maxY - b.minY
+  return span / ((form.wrapDeg * Math.PI) / 180)
+}
+
+export function buildDesign(input: BuildInput | Design): BuildResult {
+  const { sheet } = input
+  const form = 'form' in input ? input.form : undefined
   const base = ensureCCW(buildOutline(sheet.outline))
+  const design: BuildInput = {
+    sheet,
+    form,
+    groups: form?.kind === 'roll' && form.seamTabs && form.wrapDeg >= 300 ? [seamTabGroup(base, form), ...input.groups] : input.groups,
+  }
   const baseCheck = decimate(base, 120)
   const issues: Issue[] = []
   const invalidIds = new Set<string>()
@@ -335,6 +382,14 @@ export function buildDesign(design: Design): BuildResult {
         code: 'stiff-hinge',
         message: `${long.length} long solid hinge${long.length > 1 ? 's' : ''} in ${sheet.thickness} mm plate — consider perforated hinges for hand folding.`,
       })
+  }
+  const radius = rollRadius(base, form)
+  if (radius != null) {
+    issues.push({
+      severity: radius < sheet.thickness * 15 ? 'warning' : 'info',
+      code: 'roll',
+      message: `Rolls to Ø${Math.round(radius * 2)} mm${radius < sheet.thickness * 15 ? ' — very tight for this thickness; it will kink unless formed over a mandrel' : ' — use a slip roll or form it around a pipe'}.`,
+    })
   }
   if (sheet.minBridge < sheet.kerf * 2)
     issues.push({ severity: 'warning', code: 'bridge-kerf', message: 'Minimum bridge is less than 2× kerf — thin webs will burn through.' })

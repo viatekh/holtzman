@@ -20,6 +20,12 @@ npm run build
 | **Fold** | Angle, direction (up / down / alternate) and variation across the group (gradient, travelling wave, random). |
 | **Hinges** | Solid (bend line on a reference layer only) or perforated (cut slots with solid bridges, for thicker plate). Optional relief holes at the hinge ends stop tearing. |
 
+| **Roll** | Curls the finished plate into a tube (360°) or a curved panel (less). Flaps folded up stand out of the tube. Optional seam tabs tuck under the opposite edge for welding or rivets. The preview folds the flaps first, then rolls. |
+| **Parts & assembly** | A project can hold several parts, and each part is one cut file. Each part's assembly array places copies as a ring or column (with *join edges*, the radius is solved so the panels meet), a tiled wall, stacked twisting layers, or a single placed piece. |
+| **Nest** | Packs every copy of every part onto as many cutting beds as needed, and exports them as one DXF/SVG with the bed outlines on a `SHEET` layer. |
+
+There are **53 presets** in six categories: Flora, Creatures, Geometric, Kinetic surfaces, Tubes & vessels, and multi-sheet Assemblies.
+
 The **Cut** view shows the flat plate as it will be cut, with the bed outline. Features that break the rules show in red. The **Folded** view shows a 3D preview with a fold slider, plus *lay flat* or *stand up* display.
 
 ### Fabrication checks
@@ -43,6 +49,9 @@ src/lib/geometry/   pure, tested geometry — no React
   placement.ts      arrangement generators + fold-angle variation
   build.ts          design → resolved flaps/cutouts, validation, cut paths, stats
   fold.ts           flat part → rigid panels + hinge axes for the 3D view
+src/lib/three/      fold + roll posing, assembly array matrices (three.js, no React)
+src/lib/nest.ts     shelf-packs every copy onto beds
+src/lib/presetLibrary.ts  the preset library
   clipper.ts        the only clipper2-ts import (union / difference / offset)
 src/lib/export/     DXF + SVG writers
 src/lib/presets.ts  starter designs + defaults
@@ -52,7 +61,8 @@ src/components/     panels, 2D cut canvas, 3D fold view (react-three-fiber)
 
 ## Roadmap
 
-- **Multi-part sculptures**: several sheets welded together, with a 3D assembly view, weld-tab joinery and nesting on the bed.
+- Weld-tab joinery generated automatically where assembled parts meet, and true nesting (non-rectangular, interlocking).
+- Cones (rolling to a taper) and per-copy variation inside an array.
 - Flaps within flaps (nested folds), and cutout patterns *inside* flaps (veins, perforation).
 - Bend allowance and inside radius per material, and folded-state collision checks.
 - Patterns from seed-designer (voronoi, vein, scales …) as drop-out lattices.

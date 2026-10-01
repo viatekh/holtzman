@@ -1,35 +1,13 @@
 import { CircleAlert, Download, FileJson, Info, TriangleAlert, Upload } from 'lucide-react'
 import { useState } from 'react'
-import { useDesignStore } from '../../store/designStore'
-import { DESIGN_PRESETS } from '../../lib/presets'
+import { useActivePart, useDesignStore, toProject } from '../../store/designStore'
+import { nestedPaths, type NestResult } from '../../lib/nest'
 import { cn, downloadBlob, downloadJSON, loadJSONFile } from '../../lib/utils'
-import { serializeSvg } from '../../lib/export/svg'
-import { serializeDxf } from '../../lib/export/dxf'
-import type { BuildResult, Design } from '../../lib/geometry/types'
+import { serializeSvg, serializeSvgPaths } from '../../lib/export/svg'
+import { serializeDxf, serializeDxfPaths } from '../../lib/export/dxf'
+import type { BuildResult } from '../../lib/geometry/types'
 import { Section } from '../shared/Section'
 import { Checkbox } from '../shared/Checkbox'
-
-export function PresetsPanel() {
-  const loadPreset = useDesignStore((s) => s.loadPreset)
-  return (
-    <Section title="Start from" defaultOpen={false}>
-      <div className="grid grid-cols-2 gap-1.5">
-        {DESIGN_PRESETS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            title={p.blurb}
-            onClick={() => loadPreset(p.id)}
-            className="rounded-md border border-neutral-800 px-2 py-1.5 text-left text-sm text-neutral-300 hover:border-purple-500"
-          >
-            <div>{p.name}</div>
-            <div className="text-[11px] leading-snug text-neutral-500">{p.blurb}</div>
-          </button>
-        ))}
-      </div>
-    </Section>
-  )
-}
 
 function Stat({ label, value, bad }: { label: string; value: string; bad?: boolean }) {
   return (
@@ -81,9 +59,10 @@ function slug(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'sculpture'
 }
 
-export function ExportPanel({ result }: { result: BuildResult }) {
-  const design = useDesignStore((s) => s.design)
-  const loadDesign = useDesignStore((s) => s.loadDesign)
+export function ExportPanel({ result, nest, results }: { result: BuildResult; nest: NestResult; results: Map<string, BuildResult> }) {
+  const project = useDesignStore((s) => s.project)
+  const part = useActivePart()
+  const loadProject = useDesignStore((s) => s.loadProject)
   const [includeBend, setIncludeBend] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -94,7 +73,15 @@ export function ExportPanel({ result }: { result: BuildResult }) {
     )
   }
   const hasErrors = result.issues.some((i) => i.severity === 'error')
-  const base = slug(design.name)
+  const base = slug(project.parts.length > 1 ? `${project.name}-${part.name}` : project.name)
+  const nestName = `${slug(project.name)}-nested`
+  const nestLayers = includeBend ? (['cut', 'bend', 'sheet'] as const) : (['cut', 'sheet'] as const)
+  const nestDxf = () => serializeDxfPaths(nestedPaths(nest, results, includeBend), [...nestLayers])
+  const nestSvg = () => {
+    const n = Math.max(1, nest.beds.length)
+    return serializeSvgPaths(nestedPaths(nest, results, includeBend), n * nest.bed.width + (n - 1) * 100, nest.bed.height, [...nestLayers], project.name)
+  }
+  const multi = nest.totalCopies > 1
 
   const btn = 'flex items-center justify-center gap-1.5 rounded-md border border-neutral-700 px-2 py-1.5 text-sm text-neutral-200 hover:border-purple-500'
 
@@ -102,14 +89,45 @@ export function ExportPanel({ result }: { result: BuildResult }) {
     <Section title="Export">
       {hasErrors && <p className="text-xs text-red-300">Fix the errors above before cutting — exports still work for review.</p>}
       <Checkbox label="Include bend-line layer" checked={includeBend} onChange={setIncludeBend} />
+      <p className="text-xs font-medium text-neutral-400">This part{project.parts.length > 1 ? ` (${part.name})` : ''}</p>
       <div className="grid grid-cols-2 gap-2">
         <button type="button" className={btn} onClick={() => downloadBlob(new Blob([serializeDxf(result, { includeBend })], { type: 'application/dxf' }), `${base}.dxf`)}>
           <Download size={14} /> DXF
         </button>
-        <button type="button" className={btn} onClick={() => downloadBlob(new Blob([serializeSvg(result, { includeBend, name: design.name })], { type: 'image/svg+xml' }), `${base}.svg`)}>
+        <button type="button" className={btn} onClick={() => downloadBlob(new Blob([serializeSvg(result, { includeBend, name: part.name })], { type: 'image/svg+xml' }), `${base}.svg`)}>
           <Download size={14} /> SVG
         </button>
-        <button type="button" className={btn} onClick={() => downloadJSON(design, `${base}.holtzman.json`)}>
+        <button type="button" className={btn} onClick={() => copy('DXF', serializeDxf(result, { includeBend }))}>
+          Copy DXF
+        </button>
+        <button type="button" className={btn} onClick={() => copy('SVG', serializeSvg(result, { includeBend, name: part.name }))}>
+          Copy SVG
+        </button>
+      </div>
+      {multi && (
+        <>
+          <p className="text-xs font-medium text-neutral-400">
+            Everything, nested — {nest.totalCopies} pieces on {nest.beds.length} bed{nest.beds.length === 1 ? '' : 's'}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" className={btn} onClick={() => downloadBlob(new Blob([nestDxf()], { type: 'application/dxf' }), `${nestName}.dxf`)}>
+              <Download size={14} /> DXF
+            </button>
+            <button type="button" className={btn} onClick={() => downloadBlob(new Blob([nestSvg()], { type: 'image/svg+xml' }), `${nestName}.svg`)}>
+              <Download size={14} /> SVG
+            </button>
+            <button type="button" className={btn} onClick={() => copy('DXF', nestDxf())}>
+              Copy DXF
+            </button>
+            <button type="button" className={btn} onClick={() => copy('SVG', nestSvg())}>
+              Copy SVG
+            </button>
+          </div>
+        </>
+      )}
+      <p className="text-xs font-medium text-neutral-400">Project</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" className={btn} onClick={() => downloadJSON(project, `${slug(project.name)}.holtzman.json`)}>
           <FileJson size={14} /> Save project
         </button>
         <button
@@ -117,9 +135,7 @@ export function ExportPanel({ result }: { result: BuildResult }) {
           className={btn}
           onClick={async () => {
             try {
-              const data = (await loadJSONFile()) as Design
-              if (data?.version !== 1 || !data.sheet || !Array.isArray(data.groups)) throw new Error('Not a Holtzman project file')
-              loadDesign(data)
+              loadProject(toProject(await loadJSONFile()))
               setLoadError(null)
             } catch (e) {
               setLoadError(e instanceof Error ? e.message : 'Could not load file')
@@ -127,14 +143,6 @@ export function ExportPanel({ result }: { result: BuildResult }) {
           }}
         >
           <Upload size={14} /> Open project
-        </button>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" className={btn} onClick={() => copy('DXF', serializeDxf(result, { includeBend }))}>
-          Copy DXF
-        </button>
-        <button type="button" className={btn} onClick={() => copy('SVG', serializeSvg(result, { includeBend, name: design.name }))}>
-          Copy SVG
         </button>
       </div>
       {copied && <p className="text-xs text-neutral-400">{copied}</p>}

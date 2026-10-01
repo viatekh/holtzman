@@ -1,4 +1,4 @@
-import { useDesignStore } from '../../store/designStore'
+import { useActivePart, useDesignStore } from '../../store/designStore'
 import { BED_PRESETS } from '../../lib/presets'
 import type { MaterialKind, OutlineShape } from '../../lib/geometry/types'
 import { NumberField } from '../shared/NumberField'
@@ -71,7 +71,7 @@ function OutlineFields({ shape, onChange }: { shape: OutlineShape; onChange: (s:
 }
 
 export function SheetPanel() {
-  const sheet = useDesignStore((s) => s.design.sheet)
+  const sheet = useActivePart().sheet
   const updateSheet = useDesignStore((s) => s.updateSheet)
   const bedKey = BED_PRESETS.find((b) => b.width === sheet.bed.width && b.height === sheet.bed.height)?.label ?? 'custom'
 

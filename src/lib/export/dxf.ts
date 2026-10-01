@@ -1,8 +1,8 @@
-import type { BuildResult, CutLayer } from '../geometry/types'
+import type { BuildResult, CutLayer, CutPath } from '../geometry/types'
 import { normalizedPaths } from './svg'
 
-const LAYER_COLOR: Record<CutLayer, number> = { cut: 5, bend: 30 }
-const LAYER_NAME: Record<CutLayer, string> = { cut: 'CUT', bend: 'BEND' }
+const LAYER_COLOR: Record<CutLayer, number> = { cut: 5, bend: 30, sheet: 8 }
+const LAYER_NAME: Record<CutLayer, string> = { cut: 'CUT', bend: 'BEND', sheet: 'SHEET' }
 
 function num(n: number): string {
   return (Math.round(n * 10000) / 10000).toString()
@@ -11,10 +11,9 @@ function num(n: number): string {
 /** Minimal AutoCAD R12 ASCII DXF (POLYLINE/LINE entities only) — the most
  * widely accepted dialect across plasma CAM packages (SheetCam, Fusion,
  * Mach/FireControl importers). Units: millimetres. */
-export function serializeDxf(result: BuildResult, opts: { includeBend: boolean }): string {
+export function serializeDxfPaths(paths: CutPath[], layers: CutLayer[]): string {
   const out: string[] = []
   const g = (code: number, value: string | number) => out.push(String(code), String(value))
-  const layers: CutLayer[] = opts.includeBend ? ['cut', 'bend'] : ['cut']
 
   g(0, 'SECTION')
   g(2, 'HEADER')
@@ -39,7 +38,7 @@ export function serializeDxf(result: BuildResult, opts: { includeBend: boolean }
 
   g(0, 'SECTION')
   g(2, 'ENTITIES')
-  for (const p of normalizedPaths(result)) {
+  for (const p of paths) {
     if (!layers.includes(p.layer)) continue
     const layer = LAYER_NAME[p.layer]
     if (p.points.length === 2 && !p.closed) {
@@ -73,4 +72,8 @@ export function serializeDxf(result: BuildResult, opts: { includeBend: boolean }
   g(0, 'ENDSEC')
   g(0, 'EOF')
   return out.join('\n') + '\n'
+}
+
+export function serializeDxf(result: BuildResult, opts: { includeBend: boolean }): string {
+  return serializeDxfPaths(normalizedPaths(result), opts.includeBend ? ['cut', 'bend'] : ['cut'])
 }

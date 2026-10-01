@@ -1,6 +1,6 @@
 // The ONLY file importing clipper2-ts — swapping boolean engines later means
 // touching only this file.
-import { inflatePathsD, unionD, differenceD, FillRule, JoinType, EndType, type PathD } from 'clipper2-ts'
+import { inflatePathsD, intersectD, unionD, differenceD, FillRule, JoinType, EndType, type PathD } from 'clipper2-ts'
 import type { Point, Polygon } from './types'
 
 const PRECISION = 4
@@ -33,4 +33,9 @@ export function offsetPolys(polys: Polygon[], delta: number): Polygon[] {
   return fromPaths(
     inflatePathsD(polys.map(toPath), delta, JoinType.Round, EndType.Polygon, 2, PRECISION, ARC_TOLERANCE),
   )
+}
+
+export function intersectPolys(subject: Polygon[], clip: Polygon[]): Polygon[] {
+  if (subject.length === 0 || clip.length === 0) return []
+  return fromPaths(intersectD(subject.map(toPath), clip.map(toPath), FillRule.NonZero, PRECISION))
 }
