@@ -86,6 +86,13 @@ export function ExportPanel({ result }: { result: BuildResult }) {
   const loadDesign = useDesignStore((s) => s.loadDesign)
   const [includeBend, setIncludeBend] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [copied, setCopied] = useState<string | null>(null)
+  const copy = (label: string, text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => setCopied(`${label} copied — paste into a text editor and save as .${label.toLowerCase()}`),
+      () => setCopied('Clipboard blocked here — use the download buttons instead'),
+    )
+  }
   const hasErrors = result.issues.some((i) => i.severity === 'error')
   const base = slug(design.name)
 
@@ -122,6 +129,15 @@ export function ExportPanel({ result }: { result: BuildResult }) {
           <Upload size={14} /> Open project
         </button>
       </div>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" className={btn} onClick={() => copy('DXF', serializeDxf(result, { includeBend }))}>
+          Copy DXF
+        </button>
+        <button type="button" className={btn} onClick={() => copy('SVG', serializeSvg(result, { includeBend, name: design.name }))}>
+          Copy SVG
+        </button>
+      </div>
+      {copied && <p className="text-xs text-neutral-400">{copied}</p>}
       {loadError && <p className="text-xs text-red-300">{loadError}</p>}
       <p className="text-xs leading-relaxed text-neutral-500">
         Paths are kerf centrelines in mm — let your CAM apply kerf compensation. Layer CUT is everything the torch cuts; BEND marks fold lines only.
