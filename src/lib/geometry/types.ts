@@ -265,10 +265,18 @@ export interface Part {
   array: AssemblyArray
 }
 
+export interface JoineryConfig {
+  /** Cut slots wherever another part passes through a plate. */
+  autoSlots: boolean
+  /** Extra gap (mm) on every side of a slot, for fit-up and kerf wander. */
+  clearance: number
+}
+
 export interface Project {
   version: 2
   name: string
   parts: Part[]
+  joinery?: JoineryConfig
 }
 
 // ─── Derived geometry ───────────────────────────────────────────────────────
@@ -339,6 +347,8 @@ export interface BuildResult {
   flaps: ResolvedFlap[]
   cutouts: ResolvedCutout[]
   reliefs: Polygon[]
+  /** Joinery slots subtracted from the outline (already in `outline`). */
+  slots: Polygon[]
   paths: CutPath[]
   bounds: Bounds
   stats: FabricationStats

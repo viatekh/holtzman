@@ -21,6 +21,7 @@ npm run build
 | **Hinges** | Solid (bend line on a reference layer only) or perforated (cut slots with solid bridges, for thicker plate). Optional relief holes at the hinge ends stop tearing. |
 | **Roll** | Curls the finished plate into a tube (360°) or a curved panel (less). Flaps folded up stand out of the tube. Optional seam tabs tuck under the opposite edge for welding or rivets. The preview folds the flaps first, then rolls. |
 | **Parts & assembly** | A project can hold several parts, and each part is one cut file. Each part's assembly array places copies as a ring or column (with *join edges*, the radius is solved so the panels meet), a tiled wall, stacked twisting layers, or a single placed piece. |
+| **Auto slots** | Where one assembled part passes through another part's plate, that plate gets a matching slot: the other part's thickness (corrected for the crossing angle) plus a clearance. Two flat plates that cross each other get opposite half-depth slots so they slide together like an egg-crate. You can switch this off and set the clearance in the Parts panel. |
 | **Nest** | Packs every copy of every part onto as many cutting beds as needed, and exports them as one DXF/SVG with the bed outlines on a `SHEET` layer. |
 
 There are **53 presets** in six categories: Flora, Creatures, Geometric, Kinetic surfaces, Tubes & vessels, and multi-sheet Assemblies.
@@ -60,7 +61,7 @@ src/components/     panels, 2D cut canvas, 3D fold view (react-three-fiber)
 
 ## Roadmap
 
-- Weld-tab joinery generated automatically where assembled parts meet, and true nesting (non-rectangular, interlocking).
+- Weld tabs where assembled parts meet edge to edge, and true nesting (non-rectangular, interlocking).
 - Cones (rolling to a taper) and per-copy variation inside an array.
 - Flaps within flaps (nested folds), and cutout patterns *inside* flaps (veins, perforation).
 - Bend allowance and inside radius per material, and folded-state collision checks.

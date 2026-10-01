@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import { defaultArray, defaultForm, newCutoutGroup, newFlapGroup, newPart } from '../lib/presets'
 import { defaultProject, PRESETS } from '../lib/presetLibrary'
 import { generateId } from '../lib/utils'
-import type { AssemblyArray, Design, FeatureGroup, FormConfig, Part, Project, SheetConfig } from '../lib/geometry/types'
+import type { AssemblyArray, Design, FeatureGroup, FormConfig, JoineryConfig, Part, Project, SheetConfig } from '../lib/geometry/types'
 
 export type ViewMode = 'split' | '2d' | '3d' | 'assembly' | 'nest'
 export type Orientation = 'flat' | 'standing'
@@ -18,6 +18,7 @@ interface DesignState {
   orientation: Orientation
 
   setName: (name: string) => void
+  setJoinery: (joinery: JoineryConfig) => void
   // Active-part edits
   updatePart: (patch: Partial<Omit<Part, 'id'>>) => void
   updateSheet: (patch: Partial<SheetConfig>) => void
@@ -69,6 +70,7 @@ export const useDesignStore = create<DesignState>()(
         orientation: 'flat',
 
         setName: (name) => set((s) => ({ project: { ...s.project, name } })),
+        setJoinery: (joinery) => set((s) => ({ project: { ...s.project, joinery } })),
         updatePart: (patch) => mapActive((p) => ({ ...p, ...patch })),
         updateSheet: (patch) => mapActive((p) => ({ ...p, sheet: { ...p.sheet, ...patch } })),
         setForm: (form) => mapActive((p) => ({ ...p, form })),

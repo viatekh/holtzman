@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { useDesignStore } from '../../store/designStore'
-import { arrayMatrices, posedGeometry, preparePart } from '../../lib/three/partGeometry'
+import { posedGeometry, preparePart } from '../../lib/three/partGeometry'
+import { partMatrices } from '../../lib/three/joinery'
 import type { BuildResult, Part } from '../../lib/geometry/types'
 import { Grounded, Stage } from './Stage'
 import { MM, useMetalMaterial } from './materials'
@@ -23,7 +24,7 @@ function partGeometry(part: Part, result: BuildResult): THREE.BufferGeometry {
   return g
 }
 
-function PartCopies({ part, result, highlight }: { part: Part; result: BuildResult; highlight: boolean }) {
+function PartCopies({ part, result, placed, highlight }: { part: Part; result: BuildResult; placed: BuildResult; highlight: boolean }) {
   const base = useMetalMaterial(part.sheet.material)
   const material = useMemo(() => {
     if (!highlight) return base
@@ -36,7 +37,8 @@ function PartCopies({ part, result, highlight }: { part: Part; result: BuildResu
     if (material !== base) material.dispose()
   }, [material, base])
   const geometry = useMemo(() => partGeometry(part, result), [part, result])
-  const matrices = useMemo(() => arrayMatrices(part.array, geometry.boundingBox ?? new THREE.Box3()), [part.array, geometry])
+  // Placement uses the unslotted build, so cutting slots never shifts a copy.
+  const matrices = useMemo(() => partMatrices(part, placed), [part, placed])
   return (
     <>
       {matrices.map((m, i) => (
@@ -46,7 +48,7 @@ function PartCopies({ part, result, highlight }: { part: Part; result: BuildResu
   )
 }
 
-export function AssemblyView({ results }: { results: Map<string, BuildResult> }) {
+export function AssemblyView({ results, placement }: { results: Map<string, BuildResult>; placement: Map<string, BuildResult> }) {
   const project = useDesignStore((s) => s.project)
   const activeId = useDesignStore((s) => s.activePartId)
 
@@ -54,15 +56,15 @@ export function AssemblyView({ results }: { results: Map<string, BuildResult> })
   const span = useMemo(() => {
     const box = new THREE.Box3()
     for (const p of project.parts) {
-      const r = results.get(p.id)
+      const r = placement.get(p.id)
       if (!r) continue
       const g = partGeometry(p, r)
-      for (const m of arrayMatrices(p.array, g.boundingBox ?? new THREE.Box3())) box.union(g.boundingBox!.clone().applyMatrix4(m))
+      for (const m of partMatrices(p, r)) box.union(g.boundingBox!.clone().applyMatrix4(m))
     }
     if (box.isEmpty()) return 1
     const s = box.getSize(new THREE.Vector3())
     return { w: Math.max(s.x, s.z) * MM, h: s.y * MM }
-  }, [project.parts, results])
+  }, [project.parts, placement])
   const size = typeof span === 'number' ? { w: span, h: span } : span
 
   return (
@@ -72,7 +74,8 @@ export function AssemblyView({ results }: { results: Map<string, BuildResult> })
           <group scale={MM}>
             {project.parts.map((p) => {
               const r = results.get(p.id)
-              return r ? <PartCopies key={p.id} part={p} result={r} highlight={p.id === activeId && project.parts.length > 1} /> : null
+              const placed = placement.get(p.id)
+              return r && placed ? <PartCopies key={p.id} part={p} result={r} placed={placed} highlight={p.id === activeId && project.parts.length > 1} /> : null
             })}
           </group>
         </Grounded>

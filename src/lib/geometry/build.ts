@@ -159,6 +159,9 @@ export interface BuildInput {
   sheet: SheetConfig
   groups: FeatureGroup[]
   form?: FormConfig
+  /** Joinery slots (sheet coordinates) where other assembled parts pass
+   * through this plate — computed at project level, see joinery.ts. */
+  slots?: Polygon[]
 }
 
 /** Overlap tabs along the edge that closes a rolled tube — they tuck under
@@ -284,6 +287,8 @@ export function buildDesign(input: BuildInput | Design): BuildResult {
   const edgeReliefs = reliefR > 0 ? edgeFlaps.flatMap(reliefFor) : []
   if (edgeReliefs.length > 0) outline = differencePolys(outline, edgeReliefs)
   const insetReliefs = reliefR > 0 ? insetFlaps.flatMap(reliefFor) : []
+  const slots = 'slots' in input && input.slots?.length ? unionPolys(input.slots) : []
+  if (slots.length > 0) outline = differencePolys(outline, slots)
 
   // ── Cut paths ──
   const paths: CutPath[] = []
@@ -391,8 +396,20 @@ export function buildDesign(input: BuildInput | Design): BuildResult {
       message: `Rolls to Ø${Math.round(radius * 2)} mm${radius < sheet.thickness * 15 ? ' — very tight for this thickness; it will kink unless formed over a mandrel' : ' — use a slip roll or form it around a pipe'}.`,
     })
   }
+  if (slots.length > 0)
+    issues.push({ severity: 'info', code: 'slots', message: `${slots.length} slot${slots.length > 1 ? 's' : ''} cut where other parts pass through this plate.` })
+  if (slots.length > 0) {
+    const hit = flaps.filter((f) => slots.some((sl) => boundsOverlap(bounds(sl), bounds(f.polygon)) && polygonGap(sl, f.polygon, 0.01) <= 0))
+    if (hit.length > 0)
+      issues.push({
+        severity: 'warning',
+        code: 'slot-through-flap',
+        message: `${hit.length} flap${hit.length > 1 ? 's are' : ' is'} crossed by a slot — the other part runs where that flap is. Move one or expect the flap to be cut.`,
+        featureIds: hit.map((f) => f.id),
+      })
+  }
   if (sheet.minBridge < sheet.kerf * 2)
     issues.push({ severity: 'warning', code: 'bridge-kerf', message: 'Minimum bridge is less than 2× kerf — thin webs will burn through.' })
 
-  return { baseOutline: base, outline, flaps, cutouts, reliefs: [...insetReliefs, ...edgeReliefs], paths, bounds: b, stats, issues, invalidIds }
+  return { baseOutline: base, outline, flaps, cutouts, reliefs: [...insetReliefs, ...edgeReliefs], slots, paths, bounds: b, stats, issues, invalidIds }
 }

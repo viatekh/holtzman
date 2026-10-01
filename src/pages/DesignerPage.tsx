@@ -25,7 +25,7 @@ export function DesignerPage() {
   const selectedId = useDesignStore((s) => s.selectedGroupId)
   const [galleryOpen, setGalleryOpen] = useState(false)
 
-  const { results, stale } = useProjectBuilds(project)
+  const { results, placement, stale } = useProjectBuilds(project)
   const result = results.get(part.id) ?? results.values().next().value!
   const nest = useMemo(() => {
     const sheet = project.parts[0].sheet
@@ -73,7 +73,7 @@ export function DesignerPage() {
         </aside>
 
         <main className={cn('flex min-w-0 flex-1 transition-opacity', stale && 'opacity-90')}>
-          {viewMode === 'assembly' && <AssemblyView results={results} />}
+          {viewMode === 'assembly' && <AssemblyView results={results} placement={placement} />}
           {viewMode === 'nest' && <NestView nest={nest} results={results} partOrder={project.parts.map((p) => p.id)} />}
           {(viewMode === '2d' || viewMode === 'split') && (
             <div className={cn('min-w-0', viewMode === 'split' ? 'w-1/2 border-r border-neutral-800' : 'flex-1')}>

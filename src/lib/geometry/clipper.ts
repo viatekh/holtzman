@@ -35,6 +35,13 @@ export function offsetPolys(polys: Polygon[], delta: number): Polygon[] {
   )
 }
 
+/** Thickens an open polyline into a closed band, ends squared off past the
+ * endpoints by `delta`. */
+export function offsetOpenPath(path: Point[], delta: number): Polygon[] {
+  if (path.length < 2 || delta <= 0) return []
+  return fromPaths(inflatePathsD([toPath(path)], delta, JoinType.Miter, EndType.Square, 2, PRECISION, ARC_TOLERANCE))
+}
+
 export function intersectPolys(subject: Polygon[], clip: Polygon[]): Polygon[] {
   if (subject.length === 0 || clip.length === 0) return []
   return fromPaths(intersectD(subject.map(toPath), clip.map(toPath), FillRule.NonZero, PRECISION))

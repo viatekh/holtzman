@@ -2,6 +2,7 @@ import { Copy, Trash2 } from 'lucide-react'
 import { useActivePart, useDesignStore } from '../../store/designStore'
 import { defaultArray, defaultForm } from '../../lib/presets'
 import { instanceCount } from '../../lib/three/partGeometry'
+import { DEFAULT_JOINERY } from '../../lib/three/joinery'
 import { cn } from '../../lib/utils'
 import type { AssemblyArray, FormConfig } from '../../lib/geometry/types'
 import { Section } from '../shared/Section'
@@ -48,8 +49,22 @@ export function PartsPanel() {
           </li>
         ))}
       </ul>
+      <JoineryFields />
       <p className="text-xs leading-relaxed text-neutral-500">Each part is one cut file. Copies come from its assembly array; the Nest view packs them all onto beds.</p>
     </Section>
+  )
+}
+
+function JoineryFields() {
+  const joinery = useDesignStore((s) => s.project.joinery ?? DEFAULT_JOINERY)
+  const setJoinery = useDesignStore((s) => s.setJoinery)
+  return (
+    <>
+      <Checkbox label="Cut slots where parts pass through each other" checked={joinery.autoSlots} onChange={(autoSlots) => setJoinery({ ...joinery, autoSlots })} />
+      {joinery.autoSlots && (
+        <NumberField label="Slot clearance" suffix=" mm" value={joinery.clearance} min={0} max={5} step={0.1} onChange={(clearance) => setJoinery({ ...joinery, clearance })} />
+      )}
+    </>
   )
 }
 

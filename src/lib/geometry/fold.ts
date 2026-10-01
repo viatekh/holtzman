@@ -33,7 +33,7 @@ export function nestRings(rings: Polygon[]): ShapeWithHoles[] {
  * flap, cutout and relief removed) plus one panel per flap, each carrying
  * its hinge axis so the 3D view can rotate it into place. */
 export function buildFoldPanels(result: BuildResult): FoldPanel[] {
-  const holes = [...result.flaps.map((f) => f.polygon), ...result.cutouts.map((c) => c.polygon), ...result.reliefs]
+  const holes = [...result.flaps.map((f) => f.polygon), ...result.cutouts.map((c) => c.polygon), ...result.reliefs, ...result.slots]
   const baseRings = differencePolys([result.baseOutline], holes)
   const panels: FoldPanel[] = [{ id: 'base', shapes: nestRings(baseRings), fold: 0 }]
   for (const f of result.flaps) {
